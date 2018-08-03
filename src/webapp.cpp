@@ -37,7 +37,6 @@ const wxString WebAppParam::ApiExpectedVersion = "1.0.1";
 const wxString mmWebApp::getUrl()
 {
     wxString Url = Model_Infotable::instance().GetStringInfo("WEBAPPURL", "");
-    Url.Replace("https://", "http://");
     return Url;
 }
 
@@ -144,55 +143,40 @@ bool mmWebApp::WebApp_CheckApiVersion()
 //POST data as JSON
 int mmWebApp::WebApp_SendJson(wxString& Website, const wxString& JsonData, wxString& Output)
 {
-    wxHTTP http;
-    int ErrorCode = 0;
+	CURL *curl;
+	CURLcode ErrorCode;
 
-    //Build string connection
-    Website.Replace("http://", "");
-    wxString BaseServerAddress = Website.SubString(0, Website.Find("/")-1);
-    wxString PagePath = Website.SubString(Website.Find("/"), Website.Length());
+	//Create multipart form
+	wxString Boundary = "Custom_Boundary_MMEX_WebApp";
+	wxString Text = wxEmptyString;
+	wxString ContentType = wxString::Format("Content-Type: multipart/form-data; boundary=%s", Boundary);
+	Text.Append(wxString::Format("--%s\r\n", Boundary));
+	Text.Append(wxString::Format("Content-Disposition: form-data; name=\"%s\"\r\n\r\n", "MMEX_Post"));
+	Text.Append(wxString::Format("%s\r\n", JsonData));
+	Text.Append(wxString::Format("\r\n--%s--\r\n", Boundary));
 
-    //Create multipart form
-    wxString Boundary = "Custom_Boundary_MMEX_WebApp";
-    wxString Text = wxEmptyString;
-    Text.Append(wxString::Format("--%s\r\n", Boundary));
-    Text.Append(wxString::Format("Content-Disposition: form-data; name=\"%s\"\r\n\r\n", "MMEX_Post"));
-    Text.Append(wxString::Format("%s\r\n", JsonData));
-    Text.Append(wxString::Format("\r\n--%s--\r\n", Boundary));
+	curl_global_init(CURL_GLOBAL_ALL);
 
-    http.SetPostText("multipart/form-data; boundary=" + Boundary, Text);
+	curl = curl_easy_init();
+	if (curl) {
+		struct curl_slist *chunk = NULL;
+		chunk = curl_slist_append(chunk, ContentType.mb_str());
 
-    if (http.Connect(BaseServerAddress))
+		curl_easy_setopt(curl, CURLOPT_URL, Website.ToUTF8().data());
+		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
+
+		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, Text.ToUTF8().data());
+
+		ErrorCode = curl_easy_perform(curl);
+
+		/* always cleanup */
+		curl_easy_cleanup(curl);
+	}
+	curl_global_cleanup();
+
+	if (ErrorCode != CURLE_OK)
     {
-        ErrorCode = http.GetError();
-        if (ErrorCode == wxPROTO_NOERR)
-        {
-            wxInputStream *httpStream = http.GetInputStream(PagePath);
-            if (httpStream)
-            {
-                wxStringOutputStream out_stream(&Output);
-                httpStream->Read(out_stream);
-            }
-            else
-                ErrorCode = -1;
-            wxDELETE(httpStream);
-        }
-        http.Close();
-    }
-    else
-        ErrorCode = http.GetError();
-
-    if (ErrorCode != wxPROTO_NOERR)
-    {
-        if (ErrorCode == wxPROTO_NETERR) Output = _("A generic network error occurred");
-        else if (ErrorCode == wxPROTO_PROTERR) Output = _("An error occurred during negotiation");
-        else if (ErrorCode == wxPROTO_CONNERR) Output = _("The client failed to connect the server");
-        else if (ErrorCode == wxPROTO_INVVAL) Output = _("Invalid value");
-        else if (ErrorCode == wxPROTO_NOFILE) Output = _("The remote file doesn't exist");
-        else if (ErrorCode == wxPROTO_RCNCT) Output = _("An error occurred during reconnection");
-        else if (ErrorCode == wxPROTO_STREAMING) Output = _("Someone tried to send a command during a transfer");
-        else if (ErrorCode == -1) Output = _("Cannot get data from website");
-        else Output = _("Unknown error");
+		Output = curl_easy_strerror(ErrorCode);
     }
     return ErrorCode;
 }
