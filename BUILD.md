@@ -111,7 +111,12 @@ __All following commands must be run from this command prompt!__
    Replace `Visual Studio 15 2017` with `Visual Studio 15 2017 Win64`
    for 64-bit.
 
-9. Then you should follow one of  
+9. [Download OpenSSL binaries], and install them to `C:\OpenSSL-Win64` or `C:\OpenSSL-Win32` as appropriate.
+	
+   Note that you will need to add `C:\OpenSSL-Win64\bin` to the path when executing MMEX: 
+   Go to `mmex Properties \ Debugging \ Environment` and set it to `PATH=%PATH%;C:\OpenSSL-Win64\bin`.
+
+10. Then you should follow one of  
    [Visual Studio project] | [Visual Studio CLI] | [Visual Studio CMake]
 
 ### Visual Studio GUI with project file
@@ -343,5 +348,7 @@ Same as for [macOS](#3-compile-and-create-package)
     //curl.haxx.se/latest.cgi?curl=zip
 [libcurl]:
     https://curl.haxx.se/libcurl/
+[Download OpenSSL binaries]
+	https://slproweb.com/products/Win32OpenSSL.html
 [configuring CMake projects]:
     https://blogs.msdn.microsoft.com/vcblog/2016/10/05/cmake-support-in-visual-studio/#configure-cmake
