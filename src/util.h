@@ -151,7 +151,7 @@ bool get_crypto_currency_prices(std::vector<wxString>& symbols, double& usd_rate
     , wxString& output);
 
 const bool getNewsRSS(std::vector<WebsiteNews>& WebsiteNewsList);
-CURLcode site_content(const wxString& site, wxString& output);
+CURLcode http_get_data(const wxString& site, wxString& output);
 bool download_file(const wxString& site, const wxString& path);
 const wxString getURL(const wxString& file);
 

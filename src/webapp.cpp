@@ -72,7 +72,7 @@ const wxString mmWebApp::getServicesPageURL()
 const wxString mmWebApp::WebApp_getApiVersion()
 {
     wxString outputMessage;
-    site_content(mmWebApp::getServicesPageURL() + "&" + WebAppParam::CheckApiVersion, outputMessage);
+    http_get_data(mmWebApp::getServicesPageURL() + "&" + WebAppParam::CheckApiVersion, outputMessage);
     // TODO: check for errors?
     return outputMessage;
 }
@@ -104,7 +104,7 @@ bool mmWebApp::WebApp_CheckEnabled()
 bool mmWebApp::WebApp_CheckGuid()
 {
     wxString outputMessage;
-    site_content(mmWebApp::getServicesPageURL() + "&" + WebAppParam::CheckGuid, outputMessage);
+    http_get_data(mmWebApp::getServicesPageURL() + "&" + WebAppParam::CheckGuid, outputMessage);
 
     if (outputMessage == WebAppParam::MessageSuccedeed)
         return true;
@@ -184,7 +184,7 @@ int mmWebApp::WebApp_SendJson(wxString& Website, const wxString& JsonData, wxStr
 bool mmWebApp::WebApp_DeleteAllAccount()
 {
     wxString outputMessage;
-    int ErrorCode = site_content(mmWebApp::getServicesPageURL() + "&" + WebAppParam::DeleteAccount, outputMessage);
+    int ErrorCode = http_get_data(mmWebApp::getServicesPageURL() + "&" + WebAppParam::DeleteAccount, outputMessage);
 
     return mmWebApp::returnResult(ErrorCode, outputMessage);
 }
@@ -228,7 +228,7 @@ bool mmWebApp::WebApp_UpdateAccount()
 bool mmWebApp::WebApp_DeleteAllPayee()
 {
     wxString outputMessage;
-    int ErrorCode = site_content(mmWebApp::getServicesPageURL() + "&" + WebAppParam::DeletePayee, outputMessage);
+    int ErrorCode = http_get_data(mmWebApp::getServicesPageURL() + "&" + WebAppParam::DeletePayee, outputMessage);
 
     return mmWebApp::returnResult(ErrorCode, outputMessage);
 }
@@ -285,7 +285,7 @@ bool mmWebApp::WebApp_UpdatePayee()
 bool mmWebApp::WebApp_DeleteAllCategory()
 {
     wxString outputMessage;
-    int ErrorCode = site_content(mmWebApp::getServicesPageURL() + "&" + WebAppParam::DeleteCategory, outputMessage);
+    int ErrorCode = http_get_data(mmWebApp::getServicesPageURL() + "&" + WebAppParam::DeleteCategory, outputMessage);
 
     return mmWebApp::returnResult(ErrorCode, outputMessage);
 }
@@ -359,7 +359,7 @@ bool mmWebApp::WebApp_UpdateCategory()
 bool mmWebApp::WebApp_DownloadNewTransaction(WebTranVector& WebAppTransactions_, const bool CheckOnly)
 {
     wxString NewTransactionJSON;
-    CURLcode ErrorCode = site_content(mmWebApp::getServicesPageURL() + "&" + WebAppParam::DownloadNewTransaction, NewTransactionJSON);
+    CURLcode ErrorCode = http_get_data(mmWebApp::getServicesPageURL() + "&" + WebAppParam::DownloadNewTransaction, NewTransactionJSON);
 
     if (NewTransactionJSON == "null" || NewTransactionJSON.IsEmpty() || ErrorCode != CURLE_OK)
         return false;
@@ -636,7 +636,7 @@ bool mmWebApp::WebApp_DeleteOneTransaction(int WebAppTransactionId)
     wxString DeleteOneTransactionUrl = mmWebApp::getServicesPageURL() + "&" + WebAppParam::DeleteOneTransaction + "=" << WebAppTransactionId;
 
     wxString outputMessage;
-    int ErrorCode = site_content(DeleteOneTransactionUrl, outputMessage);
+    int ErrorCode = http_get_data(DeleteOneTransactionUrl, outputMessage);
 
     return mmWebApp::returnResult(ErrorCode, outputMessage);
 }

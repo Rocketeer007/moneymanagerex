@@ -188,8 +188,8 @@ curlWriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 }
 
 
-CURLcode site_content(const wxString& sSite, wxString& sOutput)
- {
+CURLcode http_get_data(const wxString& sSite, wxString& sOutput)
+{
     CURL *curl = curl_easy_init();
     if (!curl) return CURLE_FAILED_INIT;
 
@@ -221,7 +221,7 @@ CURLcode site_content(const wxString& sSite, wxString& sOutput)
         sOutput = wxString::FromUTF8(chunk.memory);
     else {
         sOutput = curl_easy_strerror(err_code); //TODO: translation
-        wxLogDebug("site_content: URL = %s error = %s", sSite, sOutput);
+        wxLogDebug("http_get_data: URL = %s error = %s", sSite, sOutput);
     }
 
     free(chunk.memory);
@@ -254,7 +254,7 @@ bool download_file(const wxString& site, const wxString& path)
 const bool getNewsRSS(std::vector<WebsiteNews>& WebsiteNewsList)
 {
     wxString RssContent;
-    if (site_content(mmex::weblink::NewsRSS, RssContent) != CURLE_OK)
+    if (http_get_data(mmex::weblink::NewsRSS, RssContent) != CURLE_OK)
         return false;
 
     //simple validation to avoid bug #1083
@@ -339,7 +339,7 @@ bool get_yahoo_prices(std::vector<wxString>& symbols
     const auto URL = wxString::Format(mmex::weblink::YahooQuotes, buffer);
 
     wxString json_data;
-    auto err_code = site_content(URL, json_data);
+    auto err_code = http_get_data(URL, json_data);
     if (err_code != CURLE_OK)
     {
         output = json_data;
@@ -427,7 +427,7 @@ bool get_crypto_currency_prices(std::vector<wxString>& symbols, double& usd_rate
     const auto URL = mmex::weblink::CoinCap;
 
     wxString json_data;
-    auto err_code = site_content(URL, json_data);
+    auto err_code = http_get_data(URL, json_data);
     if (err_code != CURLE_OK)
     {
         output = json_data;
