@@ -155,7 +155,6 @@ int mmWebApp::WebApp_SendJson(wxString& Website, const wxString& JsonData, wxStr
 	Text.Append(wxString::Format("%s\r\n", JsonData));
 	Text.Append(wxString::Format("\r\n--%s--\r\n", Boundary));
 
-	curl_global_init(CURL_GLOBAL_ALL);
 
 	curl = curl_easy_init();
 	if (curl) {
@@ -172,7 +171,6 @@ int mmWebApp::WebApp_SendJson(wxString& Website, const wxString& JsonData, wxStr
 		/* always cleanup */
 		curl_easy_cleanup(curl);
 	}
-	curl_global_cleanup();
 
 	if (ErrorCode != CURLE_OK)
     {
