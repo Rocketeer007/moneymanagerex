@@ -187,6 +187,54 @@ curlWriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
   return realsize;
 }
 
+#ifdef _DEBUG
+static int log_libcurl_debug(CURL *handle, curl_infotype type, char *data, size_t size, void *userp)
+{
+	(void)handle; /* Not used */
+	(void)userp; /* Not used */
+	static const char * const s_infotype[] = {
+		"*", "<", ">", "{", "}", "(", ")"
+	};
+
+	wxString text(data, size);
+	wxStringTokenizer tokenizer;
+
+	switch (type) {
+	case CURLINFO_HEADER_OUT:
+	case CURLINFO_TEXT:
+	case CURLINFO_HEADER_IN:
+		tokenizer.SetString(text, "\n", wxTOKEN_STRTOK);
+		while (tokenizer.HasMoreTokens()) {
+			wxString line = tokenizer.GetNextToken();
+			line.Trim();
+			wxLogTrace("libcurl", "%s %s", s_infotype[type], line);
+		}
+		break;
+	case CURLINFO_DATA_OUT:
+	case CURLINFO_DATA_IN:
+	case CURLINFO_SSL_DATA_IN:
+	case CURLINFO_SSL_DATA_OUT:
+		if (wxLog::IsAllowedTraceMask("libcurl_data")) {
+			tokenizer.SetString(text, "\n", wxTOKEN_STRTOK);
+			while (tokenizer.HasMoreTokens()) {
+				wxString line = tokenizer.GetNextToken();
+				line.Trim();
+				wxLogTrace("libcurl_data", "%s %s", s_infotype[type], line);
+			}
+		}
+		else
+		{
+			wxLogTrace("libcurl", "%s [%zu bytes data]", s_infotype[type], size);
+		}
+		break;
+	case CURLINFO_END:
+	default:
+		return 0;
+	}
+		
+	return 0;
+}
+#endif
 
 CURLcode http_get_data(const wxString& sSite, wxString& sOutput)
 {
@@ -212,6 +260,7 @@ CURLcode http_get_data(const wxString& sSite, wxString& sOutput)
 
 #ifdef _DEBUG
     curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+	curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, log_libcurl_debug);
 #endif
     curl_easy_setopt(curl, CURLOPT_USERAGENT,
         static_cast<const char*>(wxString::Format("%s/%s", mmex::getProgramName(), mmex::version::string).mb_str()));
@@ -263,6 +312,7 @@ CURLcode http_post_data(const wxString& sSite, const wxString& sData, const wxSt
 	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, static_cast<const char*>(sData.mb_str()));
 #ifdef _DEBUG
 	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+	curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, log_libcurl_debug);
 #endif
 	
 	CURLcode err_code = curl_easy_perform(curl);
