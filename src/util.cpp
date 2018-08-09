@@ -215,6 +215,7 @@ CURLcode http_get_data(const wxString& sSite, wxString& sOutput)
 #endif
     curl_easy_setopt(curl, CURLOPT_USERAGENT,
         static_cast<const char*>(wxString::Format("%s/%s", mmex::getProgramName(), mmex::version::string).mb_str()));
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_URL, static_cast<const char*>(sSite.mb_str()));
     CURLcode err_code = curl_easy_perform(curl);
     if (err_code == CURLE_OK)
@@ -227,6 +228,54 @@ CURLcode http_get_data(const wxString& sSite, wxString& sOutput)
     free(chunk.memory);
     curl_easy_cleanup(curl);
     return err_code;
+}
+
+CURLcode http_post_data(const wxString& sSite, const wxString& sData, const wxString& sContentType, wxString& sOutput) 
+{
+	CURL *curl = curl_easy_init();
+	if (!curl) return CURLE_FAILED_INIT;
+
+	wxString proxyName = Model_Setting::instance().GetStringSetting("PROXYIP", "");
+	if (!proxyName.empty())
+	{
+		int proxyPort = Model_Setting::instance().GetIntSetting("PROXYPORT", 0);
+		const wxString& proxySettings = wxString::Format("%s:%d", proxyName, proxyPort);
+		curl_easy_setopt(curl, CURLOPT_PROXY, static_cast<const char*>(proxySettings.mb_str()));
+	}
+
+	int networkTimeout = Model_Setting::instance().GetIntSetting("NETWORKTIMEOUT", 10); // default 10 secs
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, networkTimeout);
+
+	curl_easy_setopt(curl, CURLOPT_USERAGENT, static_cast<const char*>(wxString::Format("%s/%s", mmex::getProgramName(), mmex::version::string).mb_str()));
+
+	struct curlBuff chunk;
+	chunk.memory = (char *)malloc(1);
+	chunk.size = 0;
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteMemoryCallback);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
+
+	struct curl_slist *headers = NULL;
+	headers = curl_slist_append(headers, sContentType.mb_str());
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_URL, sSite.ToUTF8().data());
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, static_cast<const char*>(sData.mb_str()));
+#ifdef _DEBUG
+	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+#endif
+	
+	CURLcode err_code = curl_easy_perform(curl);
+	if (err_code == CURLE_OK)
+		sOutput = wxString::FromUTF8(chunk.memory);
+	else {
+		sOutput = curl_easy_strerror(err_code); //TODO: translation
+		wxLogDebug("http_post_data: URL = %s error = %s", sSite, sOutput);
+	}
+
+	free(chunk.memory);
+	curl_easy_cleanup(curl);
+	return err_code;
 }
 
 bool download_file(const wxString& site, const wxString& path)

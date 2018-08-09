@@ -143,40 +143,17 @@ bool mmWebApp::WebApp_CheckApiVersion()
 //POST data as JSON
 int mmWebApp::WebApp_SendJson(wxString& Website, const wxString& JsonData, wxString& Output)
 {
-	CURL *curl;
-	CURLcode ErrorCode;
-
 	//Create multipart form
 	wxString Boundary = "Custom_Boundary_MMEX_WebApp";
 	wxString Text = wxEmptyString;
-	wxString ContentType = wxString::Format("Content-Type: multipart/form-data; boundary=%s", Boundary);
 	Text.Append(wxString::Format("--%s\r\n", Boundary));
 	Text.Append(wxString::Format("Content-Disposition: form-data; name=\"%s\"\r\n\r\n", "MMEX_Post"));
 	Text.Append(wxString::Format("%s\r\n", JsonData));
 	Text.Append(wxString::Format("\r\n--%s--\r\n", Boundary));
 
+	wxString ContentType = wxString::Format("Content-Type: multipart/form-data; boundary=%s", Boundary);
 
-	curl = curl_easy_init();
-	if (curl) {
-		struct curl_slist *chunk = NULL;
-		chunk = curl_slist_append(chunk, ContentType.mb_str());
-
-		curl_easy_setopt(curl, CURLOPT_URL, Website.ToUTF8().data());
-		curl_easy_setopt(curl, CURLOPT_HTTPHEADER, chunk);
-
-		curl_easy_setopt(curl, CURLOPT_POSTFIELDS, Text.ToUTF8().data());
-
-		ErrorCode = curl_easy_perform(curl);
-
-		/* always cleanup */
-		curl_easy_cleanup(curl);
-	}
-
-	if (ErrorCode != CURLE_OK)
-    {
-		Output = curl_easy_strerror(ErrorCode);
-    }
-    return ErrorCode;
+	return http_post_data(Website, Text, ContentType, Output);
 }
 
 
