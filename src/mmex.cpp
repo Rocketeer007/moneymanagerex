@@ -178,8 +178,8 @@ bool OnInitImpl(mmGUIApp* app)
     Model_Report::prepareTempFolder();
     Model_Report::WindowsUpdateRegistry();
 
-	/* Initialize CURL */
-	curl_global_init(CURL_GLOBAL_ALL);
+    /* Initialize CURL */
+    curl_global_init(CURL_GLOBAL_ALL);
 
     /* Initialize Image Handlers */
     wxInitAllImageHandlers();
@@ -292,8 +292,8 @@ int mmGUIApp::OnExit()
 
     Mongoose_Service::instance().stop();
 
-	/* CURL Cleanup */
-	curl_global_cleanup();
+    /* CURL Cleanup */
+    curl_global_cleanup();
 
     //Delete mmex temp folder for current user
     wxFileName::Rmdir(mmex::getTempFolder(), wxPATH_RMDIR_RECURSIVE);

@@ -143,17 +143,17 @@ bool mmWebApp::WebApp_CheckApiVersion()
 //POST data as JSON
 int mmWebApp::WebApp_SendJson(wxString& Website, const wxString& JsonData, wxString& Output)
 {
-	//Create multipart form
-	wxString Boundary = "Custom_Boundary_MMEX_WebApp";
-	wxString Text = wxEmptyString;
-	Text.Append(wxString::Format("--%s\r\n", Boundary));
-	Text.Append(wxString::Format("Content-Disposition: form-data; name=\"%s\"\r\n\r\n", "MMEX_Post"));
-	Text.Append(wxString::Format("%s\r\n", JsonData));
-	Text.Append(wxString::Format("\r\n--%s--\r\n", Boundary));
+    //Create multipart form
+    wxString Boundary = "Custom_Boundary_MMEX_WebApp";
+    wxString Text = wxEmptyString;
+    Text.Append(wxString::Format("--%s\r\n", Boundary));
+    Text.Append(wxString::Format("Content-Disposition: form-data; name=\"%s\"\r\n\r\n", "MMEX_Post"));
+    Text.Append(wxString::Format("%s\r\n", JsonData));
+    Text.Append(wxString::Format("\r\n--%s--\r\n", Boundary));
 
-	wxString ContentType = wxString::Format("Content-Type: multipart/form-data; boundary=%s", Boundary);
+    wxString ContentType = wxString::Format("Content-Type: multipart/form-data; boundary=%s", Boundary);
 
-	return http_post_data(Website, Text, ContentType, Output);
+    return http_post_data(Website, Text, ContentType, Output);
 }
 
 

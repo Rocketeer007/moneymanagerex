@@ -190,57 +190,53 @@ curlWriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 #ifdef _DEBUG
 static int log_libcurl_debug(CURL *handle, curl_infotype type, char *data, size_t size, void *userp)
 {
-	(void)handle; /* Not used */
-	(void)userp; /* Not used */
-	static const char * const s_infotype[] = {
-		"*", "<", ">", "{", "}", "(", ")"
-	};
+    (void)handle; /* Not used */
+    (void)userp; /* Not used */
+    static const char * const s_infotype[] = {
+        "*", "<", ">", "{", "}", "(", ")"
+    };
 
-	wxString text(data, size);
-	wxStringTokenizer tokenizer;
+    wxString text(data, size);
+    wxStringTokenizer tokenizer;
 
-	switch (type) {
-	case CURLINFO_HEADER_OUT:
-	case CURLINFO_TEXT:
-	case CURLINFO_HEADER_IN:
-		tokenizer.SetString(text, "\n", wxTOKEN_STRTOK);
-		while (tokenizer.HasMoreTokens()) {
-			wxString line = tokenizer.GetNextToken();
-			line.Trim();
-			wxLogTrace("libcurl", "%s %s", s_infotype[type], line);
-		}
-		break;
-	case CURLINFO_DATA_OUT:
-	case CURLINFO_DATA_IN:
-	case CURLINFO_SSL_DATA_IN:
-	case CURLINFO_SSL_DATA_OUT:
-		if (wxLog::IsAllowedTraceMask("libcurl_data")) {
-			tokenizer.SetString(text, "\n", wxTOKEN_STRTOK);
-			while (tokenizer.HasMoreTokens()) {
-				wxString line = tokenizer.GetNextToken();
-				line.Trim();
-				wxLogTrace("libcurl_data", "%s %s", s_infotype[type], line);
-			}
-		}
-		else
-		{
-			wxLogTrace("libcurl", "%s [%zu bytes data]", s_infotype[type], size);
-		}
-		break;
-	case CURLINFO_END:
-	default:
-		return 0;
-	}
-		
-	return 0;
+    switch (type) {
+    case CURLINFO_HEADER_OUT:
+    case CURLINFO_TEXT:
+    case CURLINFO_HEADER_IN:
+        tokenizer.SetString(text, "\n", wxTOKEN_STRTOK);
+        while (tokenizer.HasMoreTokens()) {
+            wxString line = tokenizer.GetNextToken();
+            line.Trim();
+            wxLogTrace("libcurl", "%s %s", s_infotype[type], line);
+        }
+        break;
+    case CURLINFO_DATA_OUT:
+    case CURLINFO_DATA_IN:
+    case CURLINFO_SSL_DATA_IN:
+    case CURLINFO_SSL_DATA_OUT:
+        if (wxLog::IsAllowedTraceMask("libcurl_data")) {
+            tokenizer.SetString(text, "\n", wxTOKEN_STRTOK);
+            while (tokenizer.HasMoreTokens()) {
+                wxString line = tokenizer.GetNextToken();
+                line.Trim();
+                wxLogTrace("libcurl_data", "%s %s", s_infotype[type], line);
+            }
+        }
+        else
+        {
+            wxLogTrace("libcurl", "%s [%zu bytes data]", s_infotype[type], size);
+        }
+        break;
+    case CURLINFO_END:
+    default:
+        return 0;
+    }
+        
+    return 0;
 }
 #endif
 
-CURLcode http_get_data(const wxString& sSite, wxString& sOutput)
-{
-    CURL *curl = curl_easy_init();
-    if (!curl) return CURLE_FAILED_INIT;
-
+void curl_set_common_options(CURL* curl) {
     wxString proxyName = Model_Setting::instance().GetStringSetting("PROXYIP", "");
     if (!proxyName.empty())
     {
@@ -250,22 +246,39 @@ CURLcode http_get_data(const wxString& sSite, wxString& sOutput)
     }
 
     int networkTimeout = Model_Setting::instance().GetIntSetting("NETWORKTIMEOUT", 10); // default 10 secs
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, networkTimeout); 
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, networkTimeout);
 
-    struct curlBuff chunk;
+    curl_easy_setopt(curl, CURLOPT_USERAGENT, static_cast<const char*>(wxString::Format("%s/%s", mmex::getProgramName(), mmex::version::string).mb_str()));
+
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+#ifdef _DEBUG
+    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
+    curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, log_libcurl_debug);
+#endif
+}
+
+void curl_set_writedata_options(CURL* curl, curlBuff& chunk)
+{
     chunk.memory = (char *)malloc(1);
     chunk.size = 0;
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteMemoryCallback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
 
-#ifdef _DEBUG
-    curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-	curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, log_libcurl_debug);
-#endif
-    curl_easy_setopt(curl, CURLOPT_USERAGENT,
-        static_cast<const char*>(wxString::Format("%s/%s", mmex::getProgramName(), mmex::version::string).mb_str()));
-	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+}
+
+CURLcode http_get_data(const wxString& sSite, wxString& sOutput)
+{
+    CURL *curl = curl_easy_init();
+    if (!curl) return CURLE_FAILED_INIT;
+
+    curl_set_common_options(curl);
+
+    struct curlBuff chunk;
+    curl_set_writedata_options(curl, chunk);
+        
     curl_easy_setopt(curl, CURLOPT_URL, static_cast<const char*>(sSite.mb_str()));
+    
     CURLcode err_code = curl_easy_perform(curl);
     if (err_code == CURLE_OK)
         sOutput = wxString::FromUTF8(chunk.memory);
@@ -281,51 +294,32 @@ CURLcode http_get_data(const wxString& sSite, wxString& sOutput)
 
 CURLcode http_post_data(const wxString& sSite, const wxString& sData, const wxString& sContentType, wxString& sOutput) 
 {
-	CURL *curl = curl_easy_init();
-	if (!curl) return CURLE_FAILED_INIT;
+    CURL *curl = curl_easy_init();
+    if (!curl) return CURLE_FAILED_INIT;
 
-	wxString proxyName = Model_Setting::instance().GetStringSetting("PROXYIP", "");
-	if (!proxyName.empty())
-	{
-		int proxyPort = Model_Setting::instance().GetIntSetting("PROXYPORT", 0);
-		const wxString& proxySettings = wxString::Format("%s:%d", proxyName, proxyPort);
-		curl_easy_setopt(curl, CURLOPT_PROXY, static_cast<const char*>(proxySettings.mb_str()));
-	}
+    curl_set_common_options(curl);
 
-	int networkTimeout = Model_Setting::instance().GetIntSetting("NETWORKTIMEOUT", 10); // default 10 secs
-	curl_easy_setopt(curl, CURLOPT_TIMEOUT, networkTimeout);
+    struct curlBuff chunk;
+    curl_set_writedata_options(curl, chunk);
 
-	curl_easy_setopt(curl, CURLOPT_USERAGENT, static_cast<const char*>(wxString::Format("%s/%s", mmex::getProgramName(), mmex::version::string).mb_str()));
+    struct curl_slist *headers = NULL;
+    headers = curl_slist_append(headers, sContentType.mb_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
-	struct curlBuff chunk;
-	chunk.memory = (char *)malloc(1);
-	chunk.size = 0;
-	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteMemoryCallback);
-	curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
+    curl_easy_setopt(curl, CURLOPT_URL, sSite.ToUTF8().data());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, static_cast<const char*>(sData.mb_str()));
+    
+    CURLcode err_code = curl_easy_perform(curl);
+    if (err_code == CURLE_OK)
+        sOutput = wxString::FromUTF8(chunk.memory);
+    else {
+        sOutput = curl_easy_strerror(err_code); //TODO: translation
+        wxLogDebug("http_post_data: URL = %s error = %s", sSite, sOutput);
+    }
 
-	struct curl_slist *headers = NULL;
-	headers = curl_slist_append(headers, sContentType.mb_str());
-	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-
-	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-	curl_easy_setopt(curl, CURLOPT_URL, sSite.ToUTF8().data());
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, static_cast<const char*>(sData.mb_str()));
-#ifdef _DEBUG
-	curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-	curl_easy_setopt(curl, CURLOPT_DEBUGFUNCTION, log_libcurl_debug);
-#endif
-	
-	CURLcode err_code = curl_easy_perform(curl);
-	if (err_code == CURLE_OK)
-		sOutput = wxString::FromUTF8(chunk.memory);
-	else {
-		sOutput = curl_easy_strerror(err_code); //TODO: translation
-		wxLogDebug("http_post_data: URL = %s error = %s", sSite, sOutput);
-	}
-
-	free(chunk.memory);
-	curl_easy_cleanup(curl);
-	return err_code;
+    free(chunk.memory);
+    curl_easy_cleanup(curl);
+    return err_code;
 }
 
 bool download_file(const wxString& site, const wxString& path)
