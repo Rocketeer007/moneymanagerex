@@ -187,6 +187,13 @@ curlWriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
   return realsize;
 }
 
+static size_t
+curlWriteFileCallback(void *contents, size_t size, size_t nmemb, wxFileOutputStream *stream)
+{
+    stream->Write(contents, size * nmemb);
+    return stream->LastWrite();
+}
+
 #ifdef _DEBUG
 static int log_libcurl_debug(CURL *handle, curl_infotype type, char *data, size_t size, void *userp)
 {
@@ -306,7 +313,7 @@ CURLcode http_post_data(const wxString& sSite, const wxString& sData, const wxSt
     headers = curl_slist_append(headers, sContentType.mb_str());
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
-    curl_easy_setopt(curl, CURLOPT_URL, sSite.ToUTF8().data());
+    curl_easy_setopt(curl, CURLOPT_URL, static_cast<const char*>(sSite.mb_str()));
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, static_cast<const char*>(sData.mb_str()));
     
     CURLcode err_code = curl_easy_perform(curl);
@@ -322,22 +329,34 @@ CURLcode http_post_data(const wxString& sSite, const wxString& sData, const wxSt
     return err_code;
 }
 
-bool download_file(const wxString& site, const wxString& path)
+bool http_download_file(const wxString& sSite, const wxString& sPath)
 {
-    wxFileSystem fs;
-    wxFileSystem::AddHandler(new wxInternetFSHandler());
-    wxFSFile *file = fs.OpenFile(site);
-    if (file != NULL)
-    {
-        wxInputStream *in = file->GetStream();
-        if (in != NULL)
-        {
-            wxFileOutputStream output(path);
-            output.Write(*file->GetStream());
-            output.Close();
-            delete in;
-            return true;
-        }
+    wxLogDebug("http_download_file: URL = %s | Target = %s", sSite, sPath);
+    
+    CURL *curl = curl_easy_init();
+    if (!curl) return CURLE_FAILED_INIT;
+
+    curl_set_common_options(curl);
+
+    wxFileOutputStream output(sPath);
+    if (!output.IsOk()) {
+        wxLogDebug("http_download_file: Failed to open output file: %s error = %d", sPath, output.GetLastError());
+        return false;
+    }
+
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteFileCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&output);
+
+    curl_easy_setopt(curl, CURLOPT_URL, static_cast<const char*>(sSite.mb_str()));
+
+    CURLcode err_code = curl_easy_perform(curl);
+    output.Close();
+    curl_easy_cleanup(curl);
+
+    if (err_code == CURLE_OK)
+        return true;
+    else {
+        wxLogDebug("http_download_file: URL = %s error = %s", sSite, curl_easy_strerror(err_code));
     }
 
     return false;
