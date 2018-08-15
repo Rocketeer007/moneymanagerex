@@ -329,7 +329,7 @@ CURLcode http_post_data(const wxString& sSite, const wxString& sData, const wxSt
     return err_code;
 }
 
-bool http_download_file(const wxString& sSite, const wxString& sPath)
+CURLcode http_download_file(const wxString& sSite, const wxString& sPath)
 {
     wxLogDebug("http_download_file: URL = %s | Target = %s", sSite, sPath);
     
@@ -341,7 +341,7 @@ bool http_download_file(const wxString& sSite, const wxString& sPath)
     wxFileOutputStream output(sPath);
     if (!output.IsOk()) {
         wxLogDebug("http_download_file: Failed to open output file: %s error = %d", sPath, output.GetLastError());
-        return false;
+        return CURLE_WRITE_ERROR;
     }
 
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteFileCallback);
@@ -353,13 +353,12 @@ bool http_download_file(const wxString& sSite, const wxString& sPath)
     output.Close();
     curl_easy_cleanup(curl);
 
-    if (err_code == CURLE_OK)
-        return true;
-    else {
+    if (err_code != CURLE_OK)
+    {
         wxLogDebug("http_download_file: URL = %s error = %s", sSite, curl_easy_strerror(err_code));
     }
 
-    return false;
+    return err_code;
 }
 
 //Get unread news or all news for last year

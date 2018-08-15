@@ -627,7 +627,7 @@ wxString mmWebApp::WebApp_DownloadOneAttachment(const wxString& AttachmentName, 
     wxString FilePath = mmex::getPathAttachment(mmAttachmentManage::InfotablePathSetting()) + wxFileName::GetPathSeparator()
         + Model_Attachment::reftype_desc(Model_Attachment::TRANSACTION) + wxFileName::GetPathSeparator() + FileName;
     wxString URL = mmWebApp::getServicesPageURL() + "&" + WebAppParam::DownloadAttachments + "=" + AttachmentName;
-    if (http_download_file(URL, FilePath))
+    if (http_download_file(URL, FilePath) == CURLE_OK)
         return FileName;
     else
         return wxEmptyString;
@@ -639,7 +639,7 @@ wxString mmWebApp::WebApp_GetAttachment(const wxString& AttachmentFileName)
     wxString FileExtension = wxFileName(AttachmentFileName).GetExt().MakeLower();
     wxString FilePath = mmex::getTempFolder() + "WebAppAttach_" + wxDateTime::Now().Format("%Y%m%d%H%M%S") + "." + FileExtension;
     wxString URL = mmWebApp::getServicesPageURL() + "&" + WebAppParam::DownloadAttachments + "=" + AttachmentFileName;
-    if (http_download_file(URL, FilePath))
+    if (http_download_file(URL, FilePath) == CURLE_OK)
         return FilePath;
     else
     return wxEmptyString;
