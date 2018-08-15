@@ -141,10 +141,15 @@ void OptionSettingsNet::Create()
 
     webserverPortsStaticBoxSizer->Add(flex_sizer4, g_flagsV);
 
+    bool enableWebserverSSL = GetIniDatabaseCheckboxValue(OPT_ENABLEWEBSERVERSSL, false) && MMEX_ENABLE_WEBSERVICE_SSL;
     m_webserver_ssl_checkbox = new wxCheckBox(this, ID_DIALOG_OPTIONS_ENABLE_WEBSERVER_SSL
         , _("Enable SSL"), wxDefaultPosition, wxDefaultSize, wxCHK_2STATE);
-    m_webserver_ssl_checkbox->SetValue(GetIniDatabaseCheckboxValue(OPT_ENABLEWEBSERVERSSL, false));
+    m_webserver_ssl_checkbox->SetValue(enableWebserverSSL);
+#if MMEX_ENABLE_WEBSERVICE_SSL
     m_webserver_ssl_checkbox->SetToolTip(_("Enable internal SSL web server when MMEX Starts."));
+#else
+    m_webserver_ssl_checkbox->SetToolTip(_("The SSL web server is not available as the application was built without SSL support"));
+#endif
 
     int webserverSSLPort = Model_Setting::instance().GetIntSetting(OPT_WEBSERVERSSLPORT, 8443);
     m_webserver_ssl_port = new wxSpinCtrl(this, wxID_ANY,
@@ -255,7 +260,7 @@ void OptionSettingsNet::OnEnableWebserverChanged(wxCommandEvent& event)
 
 void OptionSettingsNet::OnEnableWebserverSSLChanged(wxCommandEvent& event)
 {
-    bool ssl_enabled = m_webserver_ssl_checkbox->GetValue();
+    bool ssl_enabled = m_webserver_ssl_checkbox->GetValue() && MMEX_ENABLE_WEBSERVICE_SSL;
     m_webserver_ssl_port->Enable(ssl_enabled);
     (wxTextCtrl*)FindWindow(ID_DIALOG_OPTIONS_WEBSERVER_SSL_CERT)->Enable(ssl_enabled);
     (wxTextCtrl*)FindWindow(ID_DIALOG_OPTIONS_WEBSERVER_SSL_KEY)->Enable(ssl_enabled);
