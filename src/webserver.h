@@ -23,6 +23,18 @@
 
 #include <wx/thread.h>
 
+#ifndef MMEX_ENABLE_WEBSERVICE_SSL
+#define MMEX_ENABLE_WEBSERVICE_SSL 0
+#endif
+
+extern const wxString OPT_ENABLEWEBSERVER;
+extern const wxString OPT_WEBSERVERPORT;
+extern const wxString OPT_ENABLEWEBSERVERSSL;
+extern const wxString OPT_WEBSERVERSSLPORT;
+extern const wxString OPT_WEBSERVERSSLCERTPATH;
+extern const wxString OPT_WEBSERVERSSLKEYPATH;
+
+
 class WebServerThread : public wxThread
 {
 public:
@@ -46,6 +58,7 @@ public:
     int svc();
 
     int stop();
+    void abort();
 private:
     WebServerThread *m_thread;
 };

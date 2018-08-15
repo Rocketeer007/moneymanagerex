@@ -112,7 +112,7 @@ __All following commands must be run from this command prompt!__
    for 64-bit.
 
 9. [Download OpenSSL binaries], and install them to `C:\OpenSSL-Win64` or `C:\OpenSSL-Win32` as appropriate.
-	
+   
    Note that you will need to add `C:\OpenSSL-Win64\bin` to the path when executing MMEX: 
    Go to `mmex Properties \ Debugging \ Environment` and set it to `PATH=%PATH%;C:\OpenSSL-Win64\bin`.
 
@@ -349,6 +349,6 @@ Same as for [macOS](#3-compile-and-create-package)
 [libcurl]:
     https://curl.haxx.se/libcurl/
 [Download OpenSSL binaries]
-	https://slproweb.com/products/Win32OpenSSL.html
+    https://slproweb.com/products/Win32OpenSSL.html
 [configuring CMake projects]:
     https://blogs.msdn.microsoft.com/vcblog/2016/10/05/cmake-support-in-visual-studio/#configure-cmake

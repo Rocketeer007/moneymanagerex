@@ -35,7 +35,8 @@ IF(GIT_FOUND)
 ENDIF()
 
 PROJECT(MMEX VERSION ${MMEX_VERSION})
-OPTION(MMEX_PORTABLE_INSTALL "Include an empty mmexini.db3 file in the Windows installation" ON) 
+OPTION(MMEX_PORTABLE_INSTALL "Include an empty mmexini.db3 file in the Windows installation" ON)
+OPTION(MMEX_DISABLE_OPENSSL "Prevent use of OpenSSL even if available on build environment" OFF)
 
 # Name of the resulted executable binary
 SET(MMEX_EXE mmex)
@@ -275,6 +276,21 @@ IF(WIN32 AND CURL_LIBRARIES MATCHES "${CMAKE_STATIC_LIBRARY_SUFFIX}$")
     SET_TARGET_PROPERTIES(CURL::libcurl PROPERTIES INTERFACE_COMPILE_DEFINITIONS CURL_STATICLIB)
 ENDIF()
 
+# --------- OpenSSL dependency (optional) ---------
+IF(MMEX_DISABLE_OPENSSL)
+    MESSAGE(STATUS "OpenSSL disabled")
+    SET(OPENSSL_FOUND FALSE)
+ELSE()
+    FIND_PACKAGE(OpenSSL)
+ENDIF()
+
+IF(OPENSSL_FOUND)
+    MESSAGE(STATUS "Found OpenSSL: ${OPENSSL_LIBRARIES} (found version \"${OPENSSL_VERSION}\")")
+    SET(MMEX_ENABLE_WEBSERVICE_SSL 1)
+ELSE()
+    MESSAGE(STATUS "OpenSSL not found: disabling SSL for built-in WebServer")
+    SET(MMEX_ENABLE_WEBSERVICE_SSL 0)
+ENDIF()
 
 # --------- Collect sources and targets ---------
 SET(MMEX_BIN_DIR bin)
@@ -674,6 +690,9 @@ IF(wxWidgets_VERSION_STRING)
 ENDIF()
 IF(CURL_VERSION_STRING)
     MESSAGE(STATUS "curl ${CURL_VERSION_STRING}")
+ENDIF()
+IF(OPENSSL_VERSION)
+    MESSAGE(STATUS "OpenSSL ${OPENSSL_VERSION} - MMEX_ENABLE_WEBSERVICE_SSL=${MMEX_ENABLE_WEBSERVICE_SSL}")
 ENDIF()
 MESSAGE(STATUS "gettext ${GETTEXT_VERSION_STRING}")
 MESSAGE(STATUS "")

@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 #include "constants.h"
 #include "option.h"
 #include "webapp.h"
+#include "webserver.h"
 
 
 #include <wx/hyperlink.h>
@@ -29,6 +30,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 wxBEGIN_EVENT_TABLE(OptionSettingsNet, wxPanel)
     EVT_TEXT(ID_DIALOG_OPTIONS_TEXTCTRL_PROXY, OptionSettingsNet::OnProxyChanged)
     EVT_CHECKBOX(ID_DIALOG_OPTIONS_ENABLE_WEBSERVER, OptionSettingsNet::OnEnableWebserverChanged)
+    EVT_CHECKBOX(ID_DIALOG_OPTIONS_ENABLE_WEBSERVER_SSL, OptionSettingsNet::OnEnableWebserverSSLChanged)
     EVT_BUTTON(ID_DIALOG_OPTIONS_BUTTON_WEBAPP_TEST, OptionSettingsNet::OnWebAppTest)
 wxEND_EVENT_TABLE()
 /*******************************************************/
@@ -118,12 +120,15 @@ void OptionSettingsNet::Create()
     wxStaticBoxSizer* webserverStaticBoxSizer = new wxStaticBoxSizer(webserverStaticBox, wxVERTICAL);
     networkPanelSizer->Add(webserverStaticBoxSizer, wxSizerFlags(g_flagsExpand).Proportion(0));
 
+    wxBoxSizer* webserverPortsStaticBoxSizer = new wxBoxSizer(wxHORIZONTAL);
+    webserverStaticBoxSizer->Add(webserverPortsStaticBoxSizer, wxSizerFlags(g_flagsExpand).Proportion(0));
+
     m_webserver_checkbox = new wxCheckBox(this, ID_DIALOG_OPTIONS_ENABLE_WEBSERVER
         , _("Enable"), wxDefaultPosition, wxDefaultSize, wxCHK_2STATE);
-    m_webserver_checkbox->SetValue(GetIniDatabaseCheckboxValue("ENABLEWEBSERVER", false));
+    m_webserver_checkbox->SetValue(GetIniDatabaseCheckboxValue(OPT_ENABLEWEBSERVER, false));
     m_webserver_checkbox->SetToolTip(_("Enable internal web server when MMEX Starts."));
 
-    int webserverPort = Model_Setting::instance().GetIntSetting("WEBSERVERPORT", 8080);
+    int webserverPort = Model_Setting::instance().GetIntSetting(OPT_WEBSERVERPORT, 8080);
     m_webserver_port = new wxSpinCtrl(this, wxID_ANY,
         wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 65535, webserverPort);
     m_webserver_port->SetValue(webserverPort);
@@ -134,26 +139,50 @@ void OptionSettingsNet::Create()
     flex_sizer4->Add(new wxStaticText(this, wxID_STATIC, _("Port")), g_flagsH);
     flex_sizer4->Add(m_webserver_port, g_flagsH);
 
-    webserverStaticBoxSizer->Add(flex_sizer4, g_flagsV);
+    webserverPortsStaticBoxSizer->Add(flex_sizer4, g_flagsV);
 
-    //Usage data send
-    wxStaticBox* usageStaticBox = new wxStaticBox(this, wxID_STATIC, _("Usage statistics"));
-    SetBoldFont(usageStaticBox);
-    wxStaticBoxSizer* usageStaticBoxSizer = new wxStaticBoxSizer(usageStaticBox, wxVERTICAL);
-    networkPanelSizer->Add(usageStaticBoxSizer, wxSizerFlags(g_flagsExpand).Proportion(0));
+    m_webserver_ssl_checkbox = new wxCheckBox(this, ID_DIALOG_OPTIONS_ENABLE_WEBSERVER_SSL
+        , _("Enable SSL"), wxDefaultPosition, wxDefaultSize, wxCHK_2STATE);
+    m_webserver_ssl_checkbox->SetValue(GetIniDatabaseCheckboxValue(OPT_ENABLEWEBSERVERSSL, false));
+    m_webserver_ssl_checkbox->SetToolTip(_("Enable internal SSL web server when MMEX Starts."));
 
-    m_send_data = new wxCheckBox(this, wxID_ANY
-        , _("Send anonymous statistics usage data"), wxDefaultPosition, wxDefaultSize, wxCHK_2STATE);
-    m_send_data->SetValue(Option::instance().SendUsageStatistics());
-    m_send_data->SetToolTip(_("Enable to help us sending anonymous data about MMEX usage."));
+    int webserverSSLPort = Model_Setting::instance().GetIntSetting(OPT_WEBSERVERSSLPORT, 8443);
+    m_webserver_ssl_port = new wxSpinCtrl(this, wxID_ANY,
+        wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 65535, webserverSSLPort);
+    m_webserver_ssl_port->SetValue(webserverSSLPort);
+    m_webserver_ssl_port->SetToolTip(_("Specify SSL web server port number"));
 
-    usageStaticBoxSizer->Add(m_send_data, g_flagsV);
+    wxFlexGridSizer* flex_sizer_ssl = new wxFlexGridSizer(0, 4, 0, 0);
+    flex_sizer_ssl->Add(m_webserver_ssl_checkbox, g_flagsH);
+    flex_sizer_ssl->Add(new wxStaticText(this, wxID_STATIC, _("SSL Port")), g_flagsH);
+    flex_sizer_ssl->Add(m_webserver_ssl_port, g_flagsH);
+
+    webserverPortsStaticBoxSizer->Add(flex_sizer_ssl, g_flagsV);
+
+    wxFlexGridSizer* flex_sizer_ssl_certs = new wxFlexGridSizer(0, 4, 0, 0);
+    flex_sizer_ssl_certs->Add(new wxStaticText(this, wxID_STATIC, _("SSL Cert File")), g_flagsH);
+    wxString SSLCertPath = Model_Setting::instance().GetStringSetting(OPT_WEBSERVERSSLCERTPATH, "");
+    wxTextCtrl* ssl_cert_path_ctrl = new wxTextCtrl(this, ID_DIALOG_OPTIONS_WEBSERVER_SSL_CERT,
+        SSLCertPath, wxDefaultPosition, wxSize(160, -1));
+    ssl_cert_path_ctrl->SetToolTip(_("Specify the location of the SSL Certificate to use"));
+    flex_sizer_ssl_certs->Add(ssl_cert_path_ctrl, g_flagsH);
+    flex_sizer_ssl_certs->Add(new wxStaticText(this, wxID_STATIC, _("SSL Key File")), g_flagsH);
+    wxString SSLKeyPath = Model_Setting::instance().GetStringSetting(OPT_WEBSERVERSSLKEYPATH, "");
+    wxTextCtrl* ssl_key_path_ctrl = new wxTextCtrl(this, ID_DIALOG_OPTIONS_WEBSERVER_SSL_KEY,
+        SSLKeyPath, wxDefaultPosition, wxSize(160, -1));
+    ssl_key_path_ctrl->SetToolTip(_("Specify the location of the SSL Key file to use"));
+    flex_sizer_ssl_certs->Add(ssl_key_path_ctrl, g_flagsH);
+    webserverStaticBoxSizer->Add(flex_sizer_ssl_certs, g_flagsV);
+
+    wxFlexGridSizer* timeoutAndUsage = new wxFlexGridSizer(2);
+    timeoutAndUsage->AddGrowableCol(0);
+    timeoutAndUsage->AddGrowableCol(1);
 
     // Communication timeout
     wxStaticBox* timeoutStaticBox = new wxStaticBox(this, wxID_STATIC, _("Timeout"));
     SetBoldFont(timeoutStaticBox);
     wxStaticBoxSizer* timeoutStaticBoxSizer = new wxStaticBoxSizer(timeoutStaticBox, wxVERTICAL);
-    networkPanelSizer->Add(timeoutStaticBoxSizer, wxSizerFlags(g_flagsExpand).Proportion(0));
+    timeoutAndUsage->Add(timeoutStaticBoxSizer, g_flagsExpand);
 
     int nTimeout = Model_Setting::instance().GetIntSetting("NETWORKTIMEOUT", 10);
     m_network_timeout = new wxSpinCtrl(this, wxID_ANY,
@@ -166,6 +195,21 @@ void OptionSettingsNet::Create()
     flex_sizer5->Add(m_network_timeout, g_flagsH);
 
     timeoutStaticBoxSizer->Add(flex_sizer5, g_flagsV);
+
+    //Usage data send
+    wxStaticBox* usageStaticBox = new wxStaticBox(this, wxID_STATIC, _("Usage statistics"));
+    SetBoldFont(usageStaticBox);
+    wxStaticBoxSizer* usageStaticBoxSizer = new wxStaticBoxSizer(usageStaticBox, wxHORIZONTAL);
+    timeoutAndUsage->Add(usageStaticBoxSizer, g_flagsExpand);
+
+    m_send_data = new wxCheckBox(this, wxID_ANY
+        , _("Send anonymous statistics usage data"), wxDefaultPosition, wxDefaultSize, wxCHK_2STATE);
+    m_send_data->SetValue(Option::instance().SendUsageStatistics());
+    m_send_data->SetToolTip(_("Enable to help us sending anonymous data about MMEX usage."));
+
+    usageStaticBoxSizer->Add(m_send_data, wxSizerFlags(g_flagsV).CenterVertical());
+
+    networkPanelSizer->Add(timeoutAndUsage, wxSizerFlags(g_flagsExpand).Proportion(0));
 
     //Updates check
     wxStaticBox* updateStaticBox = new wxStaticBox(this, wxID_STATIC, _("Check for Updates"));
@@ -195,6 +239,7 @@ void OptionSettingsNet::Create()
     wxCommandEvent evt;
     OptionSettingsNet::OnProxyChanged(evt);
     OptionSettingsNet::OnEnableWebserverChanged(evt);
+    OptionSettingsNet::OnEnableWebserverSSLChanged(evt);
     SetSizer(networkPanelSizer);
 }
 
@@ -206,6 +251,14 @@ void OptionSettingsNet::OnProxyChanged(wxCommandEvent& event)
 void OptionSettingsNet::OnEnableWebserverChanged(wxCommandEvent& event)
 {
     m_webserver_port->Enable(m_webserver_checkbox->GetValue());
+}
+
+void OptionSettingsNet::OnEnableWebserverSSLChanged(wxCommandEvent& event)
+{
+    bool ssl_enabled = m_webserver_ssl_checkbox->GetValue();
+    m_webserver_ssl_port->Enable(ssl_enabled);
+    (wxTextCtrl*)FindWindow(ID_DIALOG_OPTIONS_WEBSERVER_SSL_CERT)->Enable(ssl_enabled);
+    (wxTextCtrl*)FindWindow(ID_DIALOG_OPTIONS_WEBSERVER_SSL_KEY)->Enable(ssl_enabled);
 }
 
 void OptionSettingsNet::OnWebAppTest(wxCommandEvent& /*event*/)
@@ -235,8 +288,15 @@ void OptionSettingsNet::SaveSettings()
     wxTextCtrl* WebAppGUID = (wxTextCtrl*) FindWindow(ID_DIALOG_OPTIONS_TEXTCTRL_WEBAPPGUID);
     Model_Infotable::instance().Set("WEBAPPGUID", WebAppGUID->GetValue());
 
-    Model_Setting::instance().Set("ENABLEWEBSERVER", m_webserver_checkbox->GetValue());
-    Model_Setting::instance().Set("WEBSERVERPORT", m_webserver_port->GetValue());
+    Model_Setting::instance().Set(OPT_ENABLEWEBSERVER, m_webserver_checkbox->GetValue());
+    Model_Setting::instance().Set(OPT_WEBSERVERPORT, m_webserver_port->GetValue());
+
+    Model_Setting::instance().Set(OPT_ENABLEWEBSERVERSSL, m_webserver_ssl_checkbox->GetValue());
+    Model_Setting::instance().Set(OPT_WEBSERVERSSLPORT, m_webserver_ssl_port->GetValue());
+    wxTextCtrl* SSLCertPath = (wxTextCtrl*)FindWindow(ID_DIALOG_OPTIONS_WEBSERVER_SSL_CERT);
+    Model_Setting::instance().Set(OPT_WEBSERVERSSLCERTPATH, SSLCertPath->GetValue());
+    wxTextCtrl* SSLKeyPath = (wxTextCtrl*)FindWindow(ID_DIALOG_OPTIONS_WEBSERVER_SSL_KEY);
+    Model_Setting::instance().Set(OPT_WEBSERVERSSLKEYPATH, SSLKeyPath->GetValue());
 
     Option::instance().SendUsageStatistics(m_send_data->GetValue());
 
@@ -244,4 +304,6 @@ void OptionSettingsNet::SaveSettings()
 
     Model_Setting::instance().Set("UPDATECHECK", m_check_update->GetValue());
     Model_Setting::instance().Set("UPDATESOURCE", m_update_source->GetSelection());
+
+    Mongoose_Service::instance().open();
 }

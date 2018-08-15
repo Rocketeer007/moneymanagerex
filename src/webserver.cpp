@@ -30,6 +30,13 @@
 
 static struct mg_serve_http_opts s_http_server_opts;
 
+extern const wxString OPT_ENABLEWEBSERVER = "ENABLEWEBSERVER";
+extern const wxString OPT_WEBSERVERPORT = "WEBSERVERPORT";
+extern const wxString OPT_ENABLEWEBSERVERSSL = "ENABLEWEBSERVERSSL";
+extern const wxString OPT_WEBSERVERSSLPORT = "WEBSERVERSSLPORT";
+extern const wxString OPT_WEBSERVERSSLCERTPATH = "WEBSERVERSSLCERTPATH";
+extern const wxString OPT_WEBSERVERSSLKEYPATH = "WEBSERVERSSLKEYPATH";
+
 static void handle_sql(struct mg_connection* nc, struct http_message* hm)
 {
     char query[0xffff];
@@ -100,51 +107,56 @@ WebServerThread::~WebServerThread()
 wxThread::ExitCode WebServerThread::Entry()
 {
     // Get user setting
-    int webserverPort = Model_Setting::instance().GetIntSetting("WEBSERVERPORT", 8080);
-	const wxString& strPort = wxString::Format(":%d", webserverPort);
-	
-	int webserverSslPort = Model_Setting::instance().GetIntSetting("WEBSERVERSSLPORT", 8089); // TODO: default to 8443
-	const wxString& strSslPort = wxString::Format(":%d", webserverSslPort);
-	wxString strSslCert = Model_Setting::instance().GetStringSetting("WEBSERVERSSLCERTPATH", "C:/Temp/cert.pem"); // TODO: default to blank
-	wxString strSslKey = Model_Setting::instance().GetStringSetting("WEBSERVERSSLCERTKEY", "C:/Temp/key.pem"); // TODO: default to blank
+    int webserverPort = Model_Setting::instance().GetIntSetting(OPT_WEBSERVERPORT, 8080);
+    const wxString& strPort = wxString::Format(":%d", webserverPort);
+
+#if MMEX_ENABLE_WEBSERVICE_SSL
+    int webserverSslPort = Model_Setting::instance().GetIntSetting(OPT_WEBSERVERSSLPORT, 8443);
+    const wxString& strSslPort = wxString::Format(":%d", webserverSslPort);
+    wxString strSslCert = Model_Setting::instance().GetStringSetting(OPT_WEBSERVERSSLCERTPATH, "");
+    wxString strSslKey = Model_Setting::instance().GetStringSetting(OPT_WEBSERVERSSLKEYPATH, "");
+#endif
 
     // Create and configure the server
     struct mg_mgr mgr;
 
     mg_mgr_init(&mgr, NULL);
 
-	if (Model_Setting::instance().GetBoolSetting("ENABLEWEBSERVER", false)) {
-		wxLogDebug("Starting HTTP server on port %s\n", strPort);
-		struct mg_connection* nc = mg_bind(&mgr, strPort.c_str(), ev_handler);
-		if (nc == nullptr)
-		{
-			wxLogDebug(wxString::Format("mg_bind(%s) failed", strPort));
-			mg_mgr_free(&mgr);
-			return (wxThread::ExitCode) - 1;
-		}
+    if (Model_Setting::instance().GetBoolSetting(OPT_ENABLEWEBSERVER, false)) {
+        wxLogDebug("Starting HTTP server on port %s\n", strPort);
+        struct mg_connection* nc = mg_bind(&mgr, strPort.c_str(), ev_handler);
+        if (nc == nullptr)
+        {
+            wxLogDebug(wxString::Format("mg_bind(%s) failed", strPort));
+            mg_mgr_free(&mgr);
+            Mongoose_Service::instance().abort();
+            return (wxThread::ExitCode) - 1;
+        }
 
-		mg_set_protocol_http_websocket(nc);
-	}
+        mg_set_protocol_http_websocket(nc);
+    }
 
-	if (Model_Setting::instance().GetBoolSetting("ENABLEWEBSERVERSSL", true)) { // TODO: default to FALSE
-		struct mg_bind_opts bind_opts;
-		memset(&bind_opts, 0, sizeof(bind_opts));
-		bind_opts.ssl_cert = strSslCert.c_str();
-		bind_opts.ssl_key = strSslKey.c_str();
+#if MMEX_ENABLE_WEBSERVICE_SSL
+    if (Model_Setting::instance().GetBoolSetting(OPT_ENABLEWEBSERVERSSL, false)) {
+        struct mg_bind_opts bind_opts;
+        memset(&bind_opts, 0, sizeof(bind_opts));
+        bind_opts.ssl_cert = strSslCert.c_str();
+        bind_opts.ssl_key = strSslKey.c_str();
 
-		wxLogDebug("Starting SSL server on port %s, cert from %s, key from %s\n",
-			strSslPort, bind_opts.ssl_cert, bind_opts.ssl_key);
-		struct mg_connection* nc_ssl = mg_bind_opt(&mgr, strSslPort.c_str(), ev_handler, bind_opts);
-		if (nc_ssl == nullptr)
-		{
-			wxLogDebug(wxString::Format("mg_bind_opts(%s) failed", strSslPort.c_str()));
-			mg_mgr_free(&mgr);
-			return (wxThread::ExitCode) - 1;
-		}
+        wxLogDebug("Starting SSL server on port %s, cert from %s, key from %s\n",
+            strSslPort, strSslCert, strSslKey);
+        struct mg_connection* nc_ssl = mg_bind_opt(&mgr, strSslPort.c_str(), ev_handler, bind_opts);
+        if (nc_ssl == nullptr)
+        {
+            wxLogDebug(wxString::Format("mg_bind_opt(%s) failed", strSslPort.c_str()));
+            mg_mgr_free(&mgr);
+            Mongoose_Service::instance().abort();
+            return (wxThread::ExitCode) - 1;
+        }
 
-		mg_set_protocol_http_websocket(nc_ssl);
-	}
-
+        mg_set_protocol_http_websocket(nc_ssl);
+    }
+#endif
     std::string document_root(wxFileName(mmex::getReportFullFileName("index")).GetPath().c_str());
     s_http_server_opts.document_root = document_root.c_str();
     s_http_server_opts.enable_directory_listing = "yes";
@@ -184,11 +196,16 @@ int Mongoose_Service::open()
 
 int Mongoose_Service::svc()
 {
-	bool isEnabled = Model_Setting::instance().GetBoolSetting("ENABLEWEBSERVER", false)
-		|| Model_Setting::instance().GetBoolSetting("ENABLEWEBSERVERSSL", false);
+    bool isEnabled = Model_Setting::instance().GetBoolSetting("ENABLEWEBSERVER", false);
+#if MMEX_ENABLE_WEBSERVICE_SSL
+    isEnabled |= Model_Setting::instance().GetBoolSetting("ENABLEWEBSERVERSSL", false);
+#endif
 
     if (isEnabled)
     {
+        if (m_thread != 0)
+            stop();
+
         m_thread = new WebServerThread();
         if (m_thread->Run() == wxTHREAD_NO_ERROR)
         {
@@ -200,8 +217,18 @@ int Mongoose_Service::svc()
             delete m_thread;
             m_thread = 0;
         }
+        
+    }
+    else
+    {
+        stop();
     }
     return 0;
+}
+
+void Mongoose_Service::abort()
+{
+    m_thread = 0;
 }
 
 int Mongoose_Service::stop()
@@ -210,6 +237,7 @@ int Mongoose_Service::stop()
     {
         if (m_thread->Delete() == wxTHREAD_NO_ERROR)
         {
+            m_thread = 0;
             wxLogDebug("Mongoose Service ended.");
         }
         else

@@ -46,6 +46,7 @@ private:
 
     void OnProxyChanged(wxCommandEvent& event);
     void OnEnableWebserverChanged(wxCommandEvent& event);
+    void OnEnableWebserverSSLChanged(wxCommandEvent& event);
 
     void OnWebAppTest(wxCommandEvent& event);
 
@@ -54,6 +55,8 @@ private:
     wxCheckBox* m_send_data;
     wxCheckBox* m_webserver_checkbox;
     wxSpinCtrl* m_webserver_port;
+    wxCheckBox* m_webserver_ssl_checkbox;
+    wxSpinCtrl* m_webserver_ssl_port;
     wxTextCtrl* m_proxy_address;
     wxSpinCtrl* m_proxy_port;
     wxCheckBox* m_check_update;
@@ -65,6 +68,9 @@ private:
         ID_DIALOG_OPTIONS_TEXTCTRL_WEBAPPURL,
         ID_DIALOG_OPTIONS_TEXTCTRL_WEBAPPGUID,
         ID_DIALOG_OPTIONS_ENABLE_WEBSERVER,
+        ID_DIALOG_OPTIONS_ENABLE_WEBSERVER_SSL,
+        ID_DIALOG_OPTIONS_WEBSERVER_SSL_CERT,
+        ID_DIALOG_OPTIONS_WEBSERVER_SSL_KEY,
         ID_DIALOG_OPTIONS_UPDATES_CHECK,
         ID_DIALOG_OPTIONS_BUTTON_WEBAPP_TEST
     };
