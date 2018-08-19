@@ -25,6 +25,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 #include <wx/hyperlink.h>
 #include <wx/spinctrl.h>
+#include <wx/filepicker.h>
 
 /*******************************************************/
 wxBEGIN_EVENT_TABLE(OptionSettingsNet, wxPanel)
@@ -140,7 +141,7 @@ void OptionSettingsNet::Create()
     flex_sizer4->Add(new wxStaticText(this, wxID_STATIC, _("Port")), g_flagsH);
     flex_sizer4->Add(m_webserver_port, g_flagsH);
 
-    webserverPortsRow->Add(flex_sizer4, g_flagsV);
+    webserverPortsRow->Add(flex_sizer4, wxSizerFlags(g_flagsExpand).Border(wxALL, 0));
 
     bool enableWebserverSSL = GetIniDatabaseCheckboxValue(OPT_ENABLEWEBSERVERSSL, false) && MMEX_ENABLE_WEBSERVICE_SSL;
     m_webserver_ssl_checkbox = new wxCheckBox(this, ID_DIALOG_OPTIONS_ENABLE_WEBSERVER_SSL
@@ -153,13 +154,13 @@ void OptionSettingsNet::Create()
         wxEmptyString, wxDefaultPosition, wxDefaultSize, wxSP_ARROW_KEYS, 0, 65535, webserverSSLPort);
     m_webserver_ssl_port->SetToolTip(_("Specify SSL web server port number"));
 
-#if MMEX_ENABLE_WEBSERVICE_SSL
     wxFlexGridSizer* flex_sizer_ssl = new wxFlexGridSizer(0, 3, 0, 0);
     flex_sizer_ssl->Add(m_webserver_ssl_checkbox, g_flagsH);
     flex_sizer_ssl->Add(new wxStaticText(this, wxID_STATIC, _("SSL Port")), g_flagsH);
     flex_sizer_ssl->Add(m_webserver_ssl_port, g_flagsH);
 
-    webserverPortsRow->Add(flex_sizer_ssl, g_flagsV);
+#if MMEX_ENABLE_WEBSERVICE_SSL
+    webserverPortsRow->Add(flex_sizer_ssl, wxSizerFlags(g_flagsExpand).Border(wxALL, 0).Align(wxRIGHT));
 #endif
 
     wxFlexGridSizer* flex_sizer_ssl_certs = new wxFlexGridSizer(4);
@@ -168,17 +169,20 @@ void OptionSettingsNet::Create()
 
     flex_sizer_ssl_certs->Add(new wxStaticText(this, wxID_STATIC, _("SSL Cert File")), g_flagsH);
     wxString SSLCertPath = Model_Setting::instance().GetStringSetting(OPT_WEBSERVERSSLCERTPATH, "");
-    wxTextCtrl* ssl_cert_path_ctrl = new wxTextCtrl(this, ID_DIALOG_OPTIONS_WEBSERVER_SSL_CERT,
-        SSLCertPath, wxDefaultPosition, wxSize(160, -1));
+    wxFilePickerCtrl* ssl_cert_path_ctrl = new wxFilePickerCtrl(this, ID_DIALOG_OPTIONS_WEBSERVER_SSL_CERT,
+        SSLCertPath, wxFileSelectorPromptStr, wxFileSelectorDefaultWildcardStr, wxDefaultPosition, wxSize(160, -1));
     ssl_cert_path_ctrl->SetToolTip(_("Specify the location of the SSL Certificate to use"));
-    flex_sizer_ssl_certs->Add(ssl_cert_path_ctrl, wxSizerFlags(g_flagsExpand).Proportion(0));
+    flex_sizer_ssl_certs->Add(ssl_cert_path_ctrl, g_flagsExpand);
     flex_sizer_ssl_certs->Add(new wxStaticText(this, wxID_STATIC, _("SSL Key File")), g_flagsH);
     wxString SSLKeyPath = Model_Setting::instance().GetStringSetting(OPT_WEBSERVERSSLKEYPATH, "");
-    wxTextCtrl* ssl_key_path_ctrl = new wxTextCtrl(this, ID_DIALOG_OPTIONS_WEBSERVER_SSL_KEY,
-        SSLKeyPath, wxDefaultPosition, wxSize(160, -1));
+    wxFilePickerCtrl* ssl_key_path_ctrl = new wxFilePickerCtrl(this, ID_DIALOG_OPTIONS_WEBSERVER_SSL_KEY,
+        SSLKeyPath, wxFileSelectorPromptStr, wxFileSelectorDefaultWildcardStr, wxDefaultPosition, wxSize(160, -1));
     ssl_key_path_ctrl->SetToolTip(_("Specify the location of the SSL Key file to use"));
-    flex_sizer_ssl_certs->Add(ssl_key_path_ctrl, wxSizerFlags(g_flagsExpand).Proportion(0));
-    webserverStaticBoxSizer->Add(flex_sizer_ssl_certs, g_flagsV);
+    flex_sizer_ssl_certs->Add(ssl_key_path_ctrl, g_flagsExpand);
+    
+#if MMEX_ENABLE_WEBSERVICE_SSL
+    webserverStaticBoxSizer->Add(flex_sizer_ssl_certs, g_flagsExpand);
+#endif
 
     wxFlexGridSizer* timeoutAndUsage = new wxFlexGridSizer(2);
     timeoutAndUsage->AddGrowableCol(0);
@@ -215,7 +219,7 @@ void OptionSettingsNet::Create()
 
     usageStaticBoxSizer->Add(m_send_data, wxSizerFlags(g_flagsV).CenterVertical());
 
-    networkPanelSizer->Add(timeoutAndUsage, wxSizerFlags(g_flagsExpand).Proportion(0));
+    networkPanelSizer->Add(timeoutAndUsage, wxSizerFlags(g_flagsExpand).Proportion(0).Border(wxALL, 0));
 
     //Updates check
     wxStaticBox* updateStaticBox = new wxStaticBox(this, wxID_STATIC, _("Check for Updates"));
@@ -299,10 +303,10 @@ void OptionSettingsNet::SaveSettings()
 
     Model_Setting::instance().Set(OPT_ENABLEWEBSERVERSSL, m_webserver_ssl_checkbox->GetValue());
     Model_Setting::instance().Set(OPT_WEBSERVERSSLPORT, m_webserver_ssl_port->GetValue());
-    wxTextCtrl* SSLCertPath = (wxTextCtrl*)FindWindow(ID_DIALOG_OPTIONS_WEBSERVER_SSL_CERT);
-    Model_Setting::instance().Set(OPT_WEBSERVERSSLCERTPATH, SSLCertPath->GetValue());
-    wxTextCtrl* SSLKeyPath = (wxTextCtrl*)FindWindow(ID_DIALOG_OPTIONS_WEBSERVER_SSL_KEY);
-    Model_Setting::instance().Set(OPT_WEBSERVERSSLKEYPATH, SSLKeyPath->GetValue());
+    wxFilePickerCtrl* SSLCertPath = (wxFilePickerCtrl*)FindWindow(ID_DIALOG_OPTIONS_WEBSERVER_SSL_CERT);
+    Model_Setting::instance().Set(OPT_WEBSERVERSSLCERTPATH, SSLCertPath->GetPath());
+    wxFilePickerCtrl* SSLKeyPath = (wxFilePickerCtrl*)FindWindow(ID_DIALOG_OPTIONS_WEBSERVER_SSL_KEY);
+    Model_Setting::instance().Set(OPT_WEBSERVERSSLKEYPATH, SSLKeyPath->GetPath());
 
     Option::instance().SendUsageStatistics(m_send_data->GetValue());
 
